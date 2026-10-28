@@ -1,0 +1,17 @@
+import {Router} from 'express';import rateLimit from 'express-rate-limit';
+import {authenticate,requireRole} from '../middleware/auth.js';import {validate} from '../middleware/validate.js';import {upload} from '../middleware/upload.js';
+import * as auth from '../controllers/authController.js';import * as story from '../controllers/storyController.js';import * as user from '../controllers/userController.js';
+import * as media from '../controllers/mediaController.js';import * as mag from '../controllers/magazineController.js';import * as rep from '../controllers/reportController.js';import * as dash from '../controllers/dashboardController.js';
+const r=Router(),need=authenticate(true),maybe=authenticate(false),staff=requireRole('editor','admin'),limitAuth=rateLimit({windowMs:15*60*1000,limit:20,message:{error:'Too many attempts. Try again later.'}});
+r.get('/health',(q,s)=>s.json({ok:true}));
+r.post('/auth/register',limitAuth,validate(auth.registerSchema),auth.register);r.post('/auth/login',limitAuth,validate(auth.loginSchema),auth.login);
+r.post('/auth/logout',auth.logout);r.get('/auth/me',need,auth.me);
+r.get('/stories',story.list);r.get('/stories/mine',need,story.mine);r.get('/stories/:slug',maybe,story.getBySlug);
+r.post('/stories',need,validate(story.storySchema),story.create);r.put('/stories/:id',need,validate(story.storySchema),story.update);
+r.patch('/stories/:id/status',need,staff,validate(story.statusSchema),story.setStatus);r.delete('/stories/:id',need,story.remove);
+r.get('/users/:username',user.getProfile);r.patch('/users/me',need,validate(user.profileSchema),user.updateMe);
+r.post('/media',need,upload.array('files',10),media.uploadMedia);
+r.get('/magazines',mag.list);r.get('/magazines/:slug',mag.getBySlug);r.post('/magazines',need,staff,validate(mag.magazineSchema),mag.create);
+r.post('/reports',need,validate(rep.reportSchema),rep.create);r.get('/reports',need,staff,rep.list);r.patch('/reports/:id',need,staff,validate(rep.resolveSchema),rep.setStatus);
+r.get('/dashboard/stats',need,staff,dash.stats);r.get('/dashboard/content',need,staff,dash.content);
+export default r;
